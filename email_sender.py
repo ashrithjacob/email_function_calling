@@ -3,6 +3,8 @@ import openai
 import requests
 from tenacity import retry, wait_random_exponential, stop_after_attempt
 from termcolor import colored
+import smtplib
+from email.mime.text import MIMEText
 
 GPT_MODEL = "gpt-3.5-turbo"
 
@@ -81,10 +83,6 @@ tools = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "recipient": {
-                        "type": "string",
-                        "description": "The recepient of the email",
-                    },
                     "subject": {
                         "type": "string",
                         "description": "Subject of the email.",
@@ -110,43 +108,29 @@ messages.append(
 messages.append(
     {
         "role": "user",
-        "content": "send an email to ashrithjacob@gmail.com regarding pending fees to be paid to AWS.",
+        "content": "send an email regarding pending fees to be paid to AWS.",
     }
 )
 chat_response = chat_completion_request(messages, tools=tools)
 assistant_message = chat_response.json()["choices"][0]["message"]
 messages.append(assistant_message)
 args =json.loads(assistant_message["tool_calls"][0]["function"]["arguments"])
-import smtplib
-
-# Import the email modules we'll need
-from email.message import EmailMessage
-
-
-msg = EmailMessage()
+print(args)
+subject = args["subject"]
 body = args["content"]
-msg.set_content(body)
-msg["Subject"] = args["subject"]
-msg["From"] = "ashrithjacob2@gmail.com"
-msg["To"] = args["recipient"]
+sender = "ashrithjacob@gmail.com"
+recipients = ["ashrithjacob2@gmail.com", "ashrithjacob@gmail.com"]
+password = "voxp nkuk mhns ibtr"
 
-# Send the message via our own SMTP server.
-s = smtplib.SMTP("localhost")
-s.send_message(msg)
-s.quit()
+def send_email(subject, body, sender, recipients, password):
+    msg = MIMEText(body)
+    msg['Subject'] = subject
+    msg['From'] = sender
+    msg['To'] = ', '.join(recipients)
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp_server:
+       smtp_server.login(sender, password)
+       smtp_server.sendmail(sender, recipients, msg.as_string())
+    print("Message sent!")
 
 
-a = {
-    "role": "assistant",
-    "content": None,
-    "tool_calls": [
-        {
-            "id": "call_x675zfwqb4G35vK3Ll0hNRuW",
-            "type": "function",
-            "function": {
-                "name": "get_email_contents",
-                "arguments": '{\n  "recipient": "ashrithjacob@gmail.com",\n  "subject": "Pending fees payment for AWS",\n  "content": "Hello, \\n\\nI hope this email finds you well. I wanted to inform you that there are pending fees to be paid for the AWS services that we have been using. Could you please check the outstanding balance on your AWS account and make the necessary payment as soon as possible? \\n\\nThank you for your attention to this matter. If you have any questions or need assistance, please feel free to reach out to me. \\n\\nBest regards, \\n[Your Name]"\n}',
-            },
-        }
-    ],
-}
+send_email(subject, body, sender, recipients, password)
