@@ -1,19 +1,22 @@
 import smtplib
- 
-# creates SMTP session
-s = smtplib.SMTP('smtp.gmail.com', 587)
- 
-# start TLS for security
-s.starttls()
- 
-# Authentication
-s.login("ashrithjacob2@gmail.com", "icdattc@123")
- 
-# message to be sent
-message = "Message_you_need_to_send"
- 
-# sending the mail
-s.sendmail("ashrithjacob2@gmail.com", "ashrithjacob@gmail.com", message)
- 
-# terminating the session
-s.quit()
+from email.mime.text import MIMEText
+
+subject = "Email Subject"
+body = "This is the body of the text message"
+sender = "ashrithjacob@gmail.com"
+recipients = ["ashrithjacob2@gmail.com", "ashrithjacob@gmail.com"]
+password = "voxp nkuk mhns ibtr"
+
+
+def send_email(subject, body, sender, recipients, password):
+    msg = MIMEText(body)
+    msg['Subject'] = subject
+    msg['From'] = sender
+    msg['To'] = ', '.join(recipients)
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp_server:
+       smtp_server.login(sender, password)
+       smtp_server.sendmail(sender, recipients, msg.as_string())
+    print("Message sent!")
+
+
+send_email(subject, body, sender, recipients, password)
