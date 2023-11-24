@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 from io import StringIO
-from email_sender import chat_completion_request, tools
+from email_sender import chat_completion_request, TOOLS, tool_exception
 
 
 def get_email_ids(uploaded_file):
@@ -34,7 +34,7 @@ if prompt := st.chat_input("What is up?"):
     # Add user message to chat history
     st.session_state.messages.append({"role": "user", "content": prompt})
 
-    chat_response = chat_completion_request(st.session_state.messages, tools=tools)
+    chat_response = chat_completion_request(st.session_state.messages, tools=TOOLS)
     # assistant_message = chat_response.json()["choices"][0]["message"]
     assistant_message = chat_response.json()["choices"][0]["message"]
     # Display assistant response in chat message container

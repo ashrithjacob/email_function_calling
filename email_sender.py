@@ -85,7 +85,7 @@ def tool_exception(assistant_message):
                          "content": assistant_message["content"]})
     return assistant_message
 
-tools = [
+TOOLS = [
     {
         "type": "function",
         "function": {
@@ -131,7 +131,7 @@ while user_input != "end":
         "content": user_input,
         }
     )
-    chat_response = chat_completion_request(messages, tools= tools, tool_choice="auto")
+    chat_response = chat_completion_request(messages, tools= TOOLS, tool_choice="auto")
     assistant_message = chat_response.json()["choices"][0]["message"]
     assistant_message  =tool_exception(assistant_message)
     print(f'Assistant:{assistant_message["content"]}')
