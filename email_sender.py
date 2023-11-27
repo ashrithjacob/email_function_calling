@@ -7,11 +7,11 @@ from termcolor import colored
 import smtplib
 from email.mime.text import MIMEText
 
-GPT_MODEL = "gpt-4"
-
 
 @retry(wait=wait_random_exponential(multiplier=1, max=40), stop=stop_after_attempt(3))
-def chat_completion_request(messages, tools=None, temperature=0, tool_choice= None, model=GPT_MODEL):
+def chat_completion_request(
+    messages, tools=None, temperature=0, tool_choice=None, model="gpt-4"
+):
     headers = {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + openai.api_key,
@@ -74,16 +74,30 @@ def pretty_print_conversation(messages):
                 )
             )
 
+
 def tool_exception(assistant_message):
     if "tool_calls" not in assistant_message.keys():
         print("No fn call")
         messages.append(assistant_message)
     else:
-        assistant_message = json.loads(assistant_message["tool_calls"][0]["function"]["arguments"])
+        assistant_message = json.loads(
+            assistant_message["tool_calls"][0]["function"]["arguments"]
+        )
         print("Using fn call")
-        messages.append({"role": "assistant",
-                         "content": assistant_message["content"]})
+        messages.append({"role": "assistant", "content": assistant_message["content"]})
     return assistant_message
+
+
+def send_email(subject, body, sender, recipients, password):
+    msg = MIMEText(body)
+    msg["Subject"] = subject
+    msg["From"] = sender
+    msg["To"] = ", ".join(recipients)
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp_server:
+        smtp_server.login(sender, password)
+        smtp_server.sendmail(sender, recipients, msg.as_string())
+    print("Message sent!")
+
 
 TOOLS = [
     {
@@ -109,14 +123,15 @@ TOOLS = [
     }
 ]
 
+"""
 messages = []
 messages.append(
     {
         "role": "system",
-        "content": """You are an email sender.
+        "content": '''You are an email sender.
         Don't make assumptions about what values to plug into functions.
         Ask before adding any specific details into the email only then populate the field.
-        Always use the fucntion calling tool when drafting the email.""",
+        Always use the fucntion calling tool when drafting the email.''',
     }
 )
 print("type 'end' to exit convo")
@@ -137,24 +152,15 @@ while user_input != "end":
     print(f'Assistant:{assistant_message["content"]}')
 
 
-"""
-args =json.loads(assistant_message["tool_calls"][0]["function"]["arguments"])
-print(args)
-subject = args["subject"]
-body = args["content"]
+
+#args =json.loads(assistant_message["tool_calls"][0]["function"]["arguments"])
+#print(args)
+subject = "test email"
+body = "sup buddy"
 sender = "ashrithjacob@gmail.com"
 recipients = ["ashrithjacob2@gmail.com", "ashrithjacob@gmail.com"]
 password = "voxp nkuk mhns ibtr"
 
-def send_email(subject, body, sender, recipients, password):
-    msg = MIMEText(body)
-    msg['Subject'] = subject
-    msg['From'] = sender
-    msg['To'] = ', '.join(recipients)
-    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp_server:
-       smtp_server.login(sender, password)
-       smtp_server.sendmail(sender, recipients, msg.as_string())
-    print("Message sent!")
 
 
 send_email(subject, body, sender, recipients, password)

@@ -2,7 +2,9 @@ import streamlit as st
 import pandas as pd
 import json
 from io import StringIO
-from email_sender import chat_completion_request, TOOLS, tool_exception
+import smtplib
+from email.mime.text import MIMEText
+from email_sender import chat_completion_request, TOOLS
 
 
 def get_email_ids(uploaded_file):
@@ -13,33 +15,98 @@ def get_email_ids(uploaded_file):
     return email_ids
 
 
+def send_email(subject, body, sender, recipients, password):
+    msg = MIMEText(body)
+    msg["Subject"] = subject
+    msg["From"] = sender
+    msg["To"] = ", ".join(recipients)
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp_server:
+        smtp_server.login(sender, password)
+        smtp_server.sendmail(sender, recipients, msg.as_string())
+    print("Message sent!")
+
+
+def tool_exception(assistant_message):
+    if "tool_calls" not in assistant_message.keys():
+        st.session_state.messages.append(assistant_message)
+        st.session_state.email["tool_use"] = False
+    else:
+        assistant_message = json.loads(
+            assistant_message["tool_calls"][0]["function"]["arguments"]
+        )
+        st.session_state.messages.append(
+            {"role": "assistant", "content": assistant_message["content"]}
+        )
+        st.session_state.email["tool_use"] = True
+        st.session_state.email["subject"] = assistant_message["subject"]
+        st.session_state.email["content"] = assistant_message["content"]
+    return assistant_message
+
+
+SENDER = st.text_input("sender", "Enter your email address here")
+PASSWORD = st.text_input("password", "Enter your account number password here")
+
 uploaded_file = st.file_uploader("Choose a file")
 
 if uploaded_file is not None:
-    email_ids = get_email_ids(uploaded_file)
+    EMAIL_IDS = get_email_ids(uploaded_file)
 
 # Initialize chat history
 if "messages" not in st.session_state:
     st.session_state.messages = []
+    st.session_state.messages.append(
+        {
+            "role": "system",
+            "content": """You are an email sender.
+        Don't make assumptions about what values to plug into functions.
+        Ask before adding any specific details into the email only then populate the field.
+        Always use the fucntion calling tool when drafting the email.""",
+        }
+    )
+
+if "email" not in st.session_state:
+    st.session_state.email = {}
 
 # Display chat messages from history on app rerun
-for message in st.session_state.messages:
+for message in st.session_state.messages[1:]:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
 # React to user input
-if prompt := st.chat_input("What is up?"):
-    # Display user message in chat message container
+if prompt := st.chat_input("Chat here"):
+    # User input
     st.chat_message("user").markdown(prompt)
-    # Add user message to chat history
     st.session_state.messages.append({"role": "user", "content": prompt})
 
-    chat_response = chat_completion_request(st.session_state.messages, tools=TOOLS)
-    # assistant_message = chat_response.json()["choices"][0]["message"]
+    # calling chat completion
+    chat_response = chat_completion_request(
+        st.session_state.messages, tools=TOOLS, tool_choice="auto"
+    )
     assistant_message = chat_response.json()["choices"][0]["message"]
-    # Display assistant response in chat message container
-    with st.chat_message("assistant"):
-        st.markdown(assistant_message["content"])
-    # Add assistant response to chat history
-    st.session_state.messages.append(assistant_message)
-    st.markdown(assistant_message)
+    assistant_message = tool_exception(assistant_message)
+
+    # Display text box else chat with user
+    if st.session_state.email["tool_use"]:
+        st.markdown("Edit the Email below:")
+        st.session_state.email["subject"] = st.text_input(
+            "Subject", st.session_state.email["subject"]
+        )
+        st.session_state.email["body"] = st.text_area(
+            "Body", st.session_state.email["content"]
+        )
+        print(EMAIL_IDS)
+    else:
+        with st.chat_message("assistant"):
+            st.markdown(assistant_message["content"])
+
+# send email
+if st.button("Send email"):
+    print("here")
+    if "subject" in st.session_state.email.keys():
+        send_email(
+            st.session_state.email["subject"],
+            st.session_state.email["content"],
+            SENDER,
+            EMAIL_IDS,
+            PASSWORD,
+        )
