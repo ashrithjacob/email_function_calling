@@ -7,6 +7,13 @@ from email.mime.text import MIMEText
 from email_sender import chat_completion_request, TOOLS
 
 
+SENDER = "autoemail.ai@gmail.com"
+PASSWORD = "lmsr xffu bzbh ynea"
+CLIENT_ACCOUNT = st.text_input(
+    "client account", "Enter email id to which response is to be directed"
+)
+
+
 def get_email_ids(uploaded_file):
     # To convert to a string based IO:
     decoded_str = uploaded_file.getvalue().decode("utf-8")
@@ -31,8 +38,9 @@ def tool_exception(assistant_message):
         st.session_state.messages.append(assistant_message)
         st.session_state.email["tool_use"] = False
     else:
+        print(assistant_message["tool_calls"][0]["function"]["arguments"])
         assistant_message = json.loads(
-            assistant_message["tool_calls"][0]["function"]["arguments"]
+            assistant_message["tool_calls"][0]["function"]["arguments"], strict=False
         )
         st.session_state.messages.append(
             {"role": "assistant", "content": assistant_message["content"]}
@@ -43,10 +51,7 @@ def tool_exception(assistant_message):
     return assistant_message
 
 
-SENDER = st.text_input("sender", "Enter your email address here")
-PASSWORD = st.text_input("password", "Enter your account number password here")
-
-uploaded_file = st.file_uploader("Choose a file")
+uploaded_file = st.file_uploader("Choose a text file('.txt' extension with all target email id's on a new line)")
 
 if uploaded_file is not None:
     EMAIL_IDS = get_email_ids(uploaded_file)
@@ -89,19 +94,17 @@ if prompt := st.chat_input("Chat here"):
     if st.session_state.email["tool_use"]:
         st.markdown("Edit the Email below:")
         st.session_state.email["subject"] = st.text_input(
-            "Subject", st.session_state.email["subject"]
+            "Subject", f'DO NOT REPLY: {st.session_state.email["subject"]}'
         )
         st.session_state.email["body"] = st.text_area(
-            "Body", st.session_state.email["content"]
+            "Body", f'{st.session_state.email["content"]} \n\nTO RESPOND SEND AN EMAIL TO:{CLIENT_ACCOUNT}'
         )
-        print(EMAIL_IDS)
     else:
         with st.chat_message("assistant"):
             st.markdown(assistant_message["content"])
 
 # send email
 if st.button("Send email"):
-    print("here")
     if "subject" in st.session_state.email.keys():
         send_email(
             st.session_state.email["subject"],
